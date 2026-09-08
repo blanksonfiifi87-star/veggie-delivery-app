@@ -86,24 +86,24 @@ if portal_type == "🛒 Customer Shop":
     st.markdown('<p class="main-header">🥦 FreshVeggies Market</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">Select farm-fresh vegetable bundles delivered directly to your door in Kumasi.</p>', unsafe_allow_html=True)
     
-    # Products Catalog with Ultra-Reliable Direct CDN Image Links
+    # # Products Catalog with Ultra-Reliable Static Image Links
     products = [
         {
             "name": "Tomato Basket",
             "price": 45,
-            "img": "https://images.pexels.com/photos/1327838/pexels-photo-1327838.jpeg?auto=compress&cs=tinysrgb&w=600",
+            "img": "https://upload.wikimedia.org/wikipedia/commons/8/89/Tomato_je.jpg",
             "desc": "Fresh, ripe local tomatoes perfect for stews and fresh salads."
         },
         {
             "name": "Leafy Greens Mix",
             "price": 30,
-            "img": "https://images.pexels.com/photos/2255935/pexels-photo-2255935.jpeg?auto=compress&cs=tinysrgb&w=600",
+            "img": "https://upload.wikimedia.org/wikipedia/commons/b/b5/Assorted_vegetables_display.jpg",
             "desc": "Crisp lettuce, spinach, and fresh local green vegetables."
         },
         {
             "name": "Onion & Pepper Combo",
             "price": 50,
-            "img": "https://images.unsplash.com/photo-1618512496248-a07fe83aa8cf?auto=format&fit=crop&w=600&q=80",
+            "img": "https://upload.wikimedia.org/wikipedia/commons/1/15/Red_Onion_and_Chili_Pepper.jpg",
             "desc": "Essential cooking pack with fresh red onions and scotch bonnet peppers."
         }
     ]
