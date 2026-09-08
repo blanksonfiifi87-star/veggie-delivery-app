@@ -1,0 +1,6 @@
+[theme]
+primaryColor = "#2E7D32"            # Primary green for buttons & selections (replaces blue)
+backgroundColor = "#FFFFFF"         # Main background color (white)
+secondaryBackgroundColor = "#F4F6F4"# Sidebar & card background
+textColor = "#1E1E1E"              # Dark readable text
+font = "sans serif"
