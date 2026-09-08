@@ -177,13 +177,13 @@ if portal_type == "🛒 Customer Shop":
                             st.error("Please enter your name/phone number above first.")
                         else:
                             new_order = {
-                                "item": prod["name"],
-                                "customer": cust_name,
-                                "lat": 6.688 + random.uniform(-0.015, 0.015),
-                                "lon": -1.624 + random.uniform(-0.015, 0.015),
+                                "item": str(prod["name"]),
+                                "customer": str(cust_name),
+                                "lat": round(6.688 + random.uniform(-0.015, 0.015), 6),
+                                "lon": round(-1.624 + random.uniform(-0.015, 0.015), 6),
                                 "status": "Pending",
                                 "driver": "Unassigned",
-                                "price": prod["price"]
+                                "price": int(prod["price"])
                             }
                             supabase.table("orders").insert(new_order).execute()
                             st.balloons()
