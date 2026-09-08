@@ -4,7 +4,43 @@ import pydeck as pdk
 import random
 from supabase import create_client
 
-st.set_page_config(page_title="FreshVeggies Express", layout="wide")
+# Page Config
+st.set_page_config(
+    page_title="FreshVeggies Express",
+    page_icon="🥦",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Custom CSS for UI Polishing
+st.markdown("""
+<style>
+    .main-header {
+        font-size: 2.2rem;
+        color: #2E7D32;
+        font-weight: 700;
+        margin-bottom: 0px;
+    }
+    .sub-header {
+        font-size: 1.0rem;
+        color: #555555;
+        margin-bottom: 20px;
+    }
+    .veg-card {
+        background-color: #F9F9F9;
+        padding: 15px;
+        border-radius: 12px;
+        border: 1px solid #E0E0E0;
+        text-align: center;
+        margin-bottom: 15px;
+    }
+    .price-tag {
+        font-size: 1.2rem;
+        color: #2E7D32;
+        font-weight: bold;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # Initialize Supabase
 @st.cache_resource
@@ -19,7 +55,7 @@ def fetch_orders():
     response = supabase.table("orders").select("*").execute()
     data = response.data
     if not data:
-        return pd.DataFrame(columns=["id", "item", "customer", "lat", "lon", "status", "driver"])
+        return pd.DataFrame(columns=["id", "item", "customer", "lat", "lon", "status", "driver", "price"])
     return pd.DataFrame(data)
 
 def fetch_drivers():
@@ -29,79 +65,135 @@ def fetch_drivers():
         return ["Unassigned"]
     return [d["username"] for d in data]
 
-# Authenticate user from Supabase database
 def login_user(username, password):
     response = supabase.table("users").select("*").eq("username", username).eq("password", password).execute()
     if response.data:
-        return response.data[0] # Returns user dict containing role
+        return response.data[0]
     return None
 
 # Manage Login Session State
 if "user" not in st.session_state:
     st.session_state["user"] = None
 
-st.title("🥬 FreshVeggies Express")
-
-# Navigation Mode Selection
+# Sidebar Branding
+st.sidebar.title("🥦 FreshVeggies")
 portal_type = st.sidebar.radio("Navigation", ["🛒 Customer Shop", "🔐 Staff Login"])
 
 df_orders = fetch_orders()
 
-# --- 1. PUBLIC CUSTOMER SHOP ---
+# --- 1. VISUAL CUSTOMER SHOP ---
 if portal_type == "🛒 Customer Shop":
-    st.header("Order Fresh Vegetables")
+    st.markdown('<p class="main-header">🥦 FreshVeggies Market</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Select farm-fresh vegetable bundles delivered directly to your door in Kumasi.</p>', unsafe_allow_html=True)
     
-    veg_choice = st.selectbox("Choose Veggie Pack", ["Tomato Basket", "Leafy Greens Mix", "Onion & Pepper Combo"])
-    cust_name = st.text_input("Your Name / Phone Number")
-    
-    if st.button("Place Order"):
-        new_order = {
-            "item": veg_choice,
-            "customer": cust_name if cust_name else "Guest",
-            "lat": 6.688 + random.uniform(-0.01, 0.01),
-            "lon": -1.624 + random.uniform(-0.01, 0.01),
-            "status": "Pending",
-            "driver": "Unassigned"
+    # Products Catalog
+    products = [
+        {
+            "name": "Tomato Basket",
+            "price": 45,
+            "img": "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400&q=80",
+            "desc": "Fresh, ripe local tomatoes perfect for stews and fresh salads."
+        },
+        {
+            "name": "Leafy Greens Mix",
+            "price": 30,
+            "img": "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&q=80",
+            "desc": "Crisp lettuce, spinach, and fresh local green vegetables."
+        },
+        {
+            "name": "Onion & Pepper Combo",
+            "price": 50,
+            "img": "https://images.unsplash.com/photo-1618512496248-a07fe83aa8cf?w=400&q=80",
+            "desc": "Essential cooking pack with fresh red onions and scotch bonnet peppers."
         }
-        supabase.table("orders").insert(new_order).execute()
-        st.success("Order placed successfully! The shop will process your delivery soon.")
-        st.rerun()
+    ]
+
+    # Render Product Cards Grid
+    col1, col2, col3 = st.columns(3)
+    cols = [col1, col2, col3]
+
+    st.subheader("📝 Customer Delivery Details")
+    cust_name = st.text_input("Your Name / Phone Number (for delivery confirmation)")
+
+    for idx, prod in enumerate(products):
+        with cols[idx]:
+            st.image(prod["img"], use_container_width=True)
+            st.markdown(f"### {prod['name']}")
+            st.markdown(prod["desc"])
+            st.markdown(f'<p class="price-tag">GH₵ {prod["price"]}.00</p>', unsafe_allow_html=True)
+            
+            if st.button(f"Order {prod['name']}", key=f"btn_{idx}"):
+                if not cust_name:
+                    st.warning("Please enter your name or phone number above before placing an order.")
+                else:
+                    new_order = {
+                        "item": prod["name"],
+                        "customer": cust_name,
+                        "lat": 6.688 + random.uniform(-0.015, 0.015),
+                        "lon": -1.624 + random.uniform(-0.015, 0.015),
+                        "status": "Pending",
+                        "driver": "Unassigned",
+                        "price": prod["price"]
+                    }
+                    supabase.table("orders").insert(new_order).execute()
+                    st.balloons()
+                    st.success(f"Order placed for {prod['name']}! We'll contact you shortly.")
+                    st.rerun()
 
 # --- 2. PROTECTED STAFF LOGIN & PORTAL ---
 elif portal_type == "🔐 Staff Login":
     
-    # Show Login Screen if not logged in
     if st.session_state["user"] is None:
-        st.subheader("Staff Account Login")
+        st.subheader("🔐 Staff Portal Authentication")
         
-        with st.form("login_form"):
-            username_input = st.text_input("Username")
-            password_input = st.text_input("Password", type="password")
-            submit_button = st.form_submit_button("Sign In")
-            
-            if submit_button:
-                user_account = login_user(username_input.lower().strip(), password_input)
-                if user_account:
-                    st.session_state["user"] = user_account
-                    st.success(f"Welcome back, {user_account['username']}!")
-                    st.rerun()
-                else:
-                    st.error("Invalid Username or Password.")
+        col_a, col_b, col_c = st.columns([1, 2, 1])
+        with col_b:
+            with st.form("login_form"):
+                username_input = st.text_input("Username")
+                password_input = st.text_input("Password", type="password")
+                submit_button = st.form_submit_button("Sign In")
+                
+                if submit_button:
+                    user_account = login_user(username_input.lower().strip(), password_input)
+                    if user_account:
+                        st.session_state["user"] = user_account
+                        st.success(f"Welcome back, {user_account['username']}!")
+                        st.rerun()
+                    else:
+                        st.error("Invalid Username or Password.")
 
-    # Display Dashboard once authenticated
     else:
         current_user = st.session_state["user"]
-        st.sidebar.write(f"Logged in as: **{current_user['username']}** ({current_user['role']})")
+        st.sidebar.markdown("---")
+        st.sidebar.write(f"Logged in as: **{current_user['username']}**")
+        st.sidebar.caption(f"Role: {current_user['role']}")
         
-        if st.sidebar.button("Logout"):
+        if st.sidebar.button("🚪 Logout"):
             st.session_state["user"] = None
             st.rerun()
 
         # FIIFI'S OWNER DASHBOARD
         if current_user["role"] == "Owner":
-            st.header("Shop Owner Management Console")
+            st.markdown('<p class="main-header">📊 Owner Command Center</p>', unsafe_allow_html=True)
+            st.markdown('<p class="sub-header">Manage shop revenue, live orders, and delivery driver assignments.</p>', unsafe_allow_html=True)
             
-            # Form to register a new driver
+            # Key Performance Metrics
+            m1, m2, m3 = st.columns(3)
+            
+            total_orders = len(df_orders) if not df_orders.empty else 0
+            pending_orders = len(df_orders[df_orders["status"] != "Delivered"]) if not df_orders.empty else 0
+            
+            # Calculate total sales revenue if price column exists
+            total_revenue = 0
+            if not df_orders.empty and "price" in df_orders.columns:
+                total_revenue = df_orders["price"].fillna(0).sum()
+                
+            m1.metric("Total Revenue", f"GH₵ {total_revenue:,.2f}")
+            m2.metric("Total Orders", f"{total_orders}")
+            m3.metric("Active Deliveries", f"{pending_orders}")
+            
+            st.markdown("---")
+
             with st.expander("➕ Register a New Driver Account"):
                 with st.form("add_driver_form"):
                     new_driver_username = st.text_input("New Driver Username")
@@ -116,12 +208,10 @@ elif portal_type == "🔐 Staff Login":
                                     "password": new_driver_password,
                                     "role": "Driver"
                                 }).execute()
-                                st.success(f"Driver '{new_driver_username}' created successfully! They can now log in.")
+                                st.success(f"Driver '{new_driver_username}' created successfully!")
                                 st.rerun()
-                            except Exception as e:
+                            except Exception:
                                 st.error("Error creating driver. Username might already exist.")
-                        else:
-                            st.warning("Please provide both a username and password.")
 
             col1, col2 = st.columns([2, 1])
             
@@ -132,19 +222,20 @@ elif portal_type == "🔐 Staff Login":
                         "ScatterplotLayer",
                         data=df_orders,
                         get_position=["lon", "lat"],
-                        get_color="[200, 30, 0, 160]",
-                        get_radius=100,
+                        get_color="[46, 125, 50, 180]",
+                        get_radius=120,
                         pickable=True
                     )
                     view_state = pdk.ViewState(latitude=df_orders["lat"].mean(), longitude=df_orders["lon"].mean(), zoom=12)
                     st.pydeck_chart(pdk.Deck(layers=[scatter_layer], initial_view_state=view_state, tooltip={"text": "Item: {item}\nStatus: {status}"}))
                 else:
-                    st.info("No active orders on the map yet.")
+                    st.info("No active orders to display on map.")
 
             with col2:
-                st.subheader("📦 Order Management")
+                st.subheader("📦 Order Dispatch")
                 if not df_orders.empty:
-                    st.dataframe(df_orders[["id", "item", "customer", "status", "driver"]], hide_index=True)
+                    display_cols = ["id", "item", "customer", "status", "driver"]
+                    st.dataframe(df_orders[display_cols], hide_index=True, use_container_width=True)
                     
                     driver_list = fetch_drivers()
                     selected_id = st.selectbox("Assign Driver to Order ID", df_orders["id"])
@@ -152,14 +243,15 @@ elif portal_type == "🔐 Staff Login":
                     
                     if st.button("Assign Driver"):
                         supabase.table("orders").update({"driver": driver_name, "status": "Assigned"}).eq("id", selected_id).execute()
-                        st.success(f"Assigned Order #{selected_id} to {driver_name}")
+                        st.success(f"Order #{selected_id} assigned to {driver_name}")
                         st.rerun()
                 else:
                     st.info("Waiting for incoming orders...")
 
         # DRIVER VIEW
         elif current_user["role"] == "Driver":
-            st.header(f"🚚 Driver Portal: {current_user['username']}")
+            st.markdown(f'<p class="main-header">🚚 Driver Portal: {current_user["username"].capitalize()}</p>', unsafe_allow_html=True)
+            st.markdown('<p class="sub-header">View assigned orders and update delivery status on the go.</p>', unsafe_allow_html=True)
             
             if not df_orders.empty:
                 my_orders = df_orders[df_orders["driver"] == current_user["username"]]
@@ -168,11 +260,19 @@ elif portal_type == "🔐 Staff Login":
                     st.info(f"No active deliveries assigned to {current_user['username']}.")
                 else:
                     for idx, row in my_orders.iterrows():
-                        st.write(f"**Order #{row['id']}** — {row['item']}")
-                        st.write(f"Customer: {row['customer']} | Status: **{row['status']}**")
-                        
-                        new_status = st.selectbox(f"Update Status for #{row['id']}", ["Assigned", "Out for Delivery", "Delivered"], key=f"status_{row['id']}")
-                        if st.button(f"Update Order #{row['id']}", key=f"btn_{row['id']}"):
-                            supabase.table("orders").update({"status": new_status}).eq("id", row["id"]).execute()
-                            st.success("Status Updated!")
-                            st.rerun()
+                        with st.container():
+                            st.subheader(f"Order #{row['id']} — {row['item']}")
+                            st.write(f"👤 Customer: **{row['customer']}**")
+                            st.write(f"📌 Current Status: **{row['status']}**")
+                            
+                            new_status = st.selectbox(
+                                "Update Status", 
+                                ["Assigned", "Out for Delivery", "Delivered"], 
+                                index=["Assigned", "Out for Delivery", "Delivered"].index(row['status']) if row['status'] in ["Assigned", "Out for Delivery", "Delivered"] else 0,
+                                key=f"status_{row['id']}"
+                            )
+                            if st.button(f"Update Order #{row['id']}", key=f"btn_{row['id']}"):
+                                supabase.table("orders").update({"status": new_status}).eq("id", row["id"]).execute()
+                                st.success("Status Updated!")
+                                st.rerun()
+                            st.markdown("---")
