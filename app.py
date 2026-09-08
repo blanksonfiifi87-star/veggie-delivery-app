@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import pydeck as pdk
 import random
+import os
 from supabase import create_client
 
 # Page Config
@@ -12,13 +13,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for Google Font (Poppins) & UI Polishing
+# --- MODERN STYLING (CSS) ---
 st.markdown("""
 <style>
-    /* Import Google Font - Poppins */
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
-    /* Apply Poppins to every text element in Streamlit */
     html, body, [class*="st-"], .stMarkdown, button, input, select, textarea {
         font-family: 'Poppins', sans-serif !important;
     }
@@ -34,15 +33,57 @@ st.markdown("""
         color: #555555;
         margin-bottom: 20px;
     }
-    .price-tag {
-        font-size: 1.2rem;
-        color: #2E7D32;
+    .section-banner {
+        background-color: #f4fbf7;
+        padding: 10px 18px;
+        border-radius: 12px;
+        border-left: 5px solid #2E7D32;
+        font-size: 1.4rem;
         font-weight: 700;
+        color: #2E7D32;
+        margin-top: 25px;
+        margin-bottom: 15px;
+    }
+    .product-card {
+        background-color: #ffffff;
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        border: 1px solid #f0f0f0;
+        margin-bottom: 15px;
+    }
+    .category-badge {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 12px;
+        display: inline-block;
+        margin-bottom: 8px;
+    }
+    .product-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 4px;
+    }
+    .product-desc {
+        font-size: 0.85rem;
+        color: #666666;
+        height: 38px;
+        overflow: hidden;
+        margin-bottom: 10px;
+    }
+    .price-text {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #2e7d32;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize Supabase
+# --- SUPABASE INITIALIZATION ---
 @st.cache_resource
 def init_supabase():
     url = st.secrets["SUPABASE_URL"]
@@ -71,7 +112,6 @@ def login_user(username, password):
         return response.data[0]
     return None
 
-# Manage Login Session State
 if "user" not in st.session_state:
     st.session_state["user"] = None
 
@@ -81,71 +121,79 @@ portal_type = st.sidebar.radio("Navigation", ["🛒 Customer Shop", "🔐 Staff 
 
 df_orders = fetch_orders()
 
-# --- 1. VISUAL CUSTOMER SHOP ---
-if portal_type == "🛒 Customer Shop":
-    st.markdown('<p class="main-header">🥦 FreshVeggies Market</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">Select farm-fresh vegetable bundles delivered directly to your door in Kumasi.</p>', unsafe_allow_html=True)
-    
-    # # Products Catalog with Ultra-Reliable Static Image Links
-    products = [
-        {
-            "name": "Tomato Basket",
-            "price": 45,
-            "img": "https://upload.wikimedia.org/wikipedia/commons/8/89/Tomato_je.jpg",
-            "desc": "Fresh, ripe local tomatoes perfect for stews and fresh salads."
-        },
-        {
-            "name": "Leafy Greens Mix",
-            "price": 30,
-            "img": "https://upload.wikimedia.org/wikipedia/commons/b/b5/Assorted_vegetables_display.jpg",
-            "desc": "Crisp lettuce, spinach, and fresh local green vegetables."
-        },
-        {
-            "name": "Onion & Pepper Combo",
-            "price": 50,
-            "img": "https://upload.wikimedia.org/wikipedia/commons/1/15/Red_Onion_and_Chili_Pepper.jpg",
-            "desc": "Essential cooking pack with fresh red onions and scotch bonnet peppers."
-        }
+# --- 10 PRODUCT CATALOG (ONLY GENERATED IMAGES) ---
+catalog_sections = {
+    "🥦 Fresh Vegetables": [
+        {"name": "Local Tomatoes Basket", "price": 45, "img": "assets/tomatoes.jpg", "icon": "🍅", "desc": "Fresh Kumasi red tomatoes (5kg basket)"},
+        {"name": "Fresh Onions Bag", "price": 50, "img": "assets/onions.jpg", "icon": "🧅", "desc": "Crisp red onions pack"},
+        {"name": "Scotch Bonnet Peppers", "price": 25, "img": "assets/peppers.jpg", "icon": "🌶️", "desc": "Spicy Kpakpo shito & red peppers"},
+        {"name": "Garden Eggs (Eggplant)", "price": 20, "img": "assets/garden_eggs.jpg", "icon": "🍆", "desc": "Local white garden eggs for stew"},
+        {"name": "Fresh Okra Pack", "price": 15, "img": "assets/okra.jpg", "icon": "🫛", "desc": "Tender green okra pods"},
+        {"name": "Carrot Bunch", "price": 18, "img": "assets/carrots.jpg", "icon": "🥕", "desc": "Sweet local organic carrots"},
+        {"name": "Cabbage Head", "price": 20, "img": "assets/cabbage.jpg", "icon": "🥬", "desc": "Fresh crunchy cabbage"},
+        {"name": "Cucumber Bunch", "price": 15, "img": "assets/cucumber.jpg", "icon": "🥒", "desc": "Cool crisp cucumbers"},
+        {"name": "Green Bell Peppers", "price": 22, "img": "assets/green_peppers.jpg", "icon": "🫑", "desc": "Fresh green capsicum bell peppers"},
+        {"name": "Red Bell Peppers", "price": 28, "img": "assets/red_peppers.jpg", "icon": "🫑", "desc": "Ripe sweet red bell peppers"}
     ]
+}
 
-    # Render Product Cards Grid
-    col1, col2, col3 = st.columns(3)
-    cols = [col1, col2, col3]
-
-    st.subheader("📝 Customer Delivery Details")
-    cust_name = st.text_input("Your Name / Phone Number (for delivery confirmation)")
-
-    for idx, prod in enumerate(products):
-        with cols[idx]:
-            st.image(prod["img"], use_container_width=True)
-            st.markdown(f"### {prod['name']}")
-            st.markdown(prod["desc"])
-            st.markdown(f'<p class="price-tag">GH₵ {prod["price"]}.00</p>', unsafe_allow_html=True)
-            
-            if st.button(f"Order {prod['name']}", key=f"btn_{idx}"):
-                if not cust_name:
-                    st.warning("Please enter your name or phone number above before placing an order.")
-                else:
-                    new_order = {
-                        "item": prod["name"],
-                        "customer": cust_name,
-                        "lat": 6.688 + random.uniform(-0.015, 0.015),
-                        "lon": -1.624 + random.uniform(-0.015, 0.015),
-                        "status": "Pending",
-                        "driver": "Unassigned",
-                        "price": prod["price"]
-                    }
-                    supabase.table("orders").insert(new_order).execute()
-                    st.balloons()
-                    st.success(f"Order placed for {prod['name']}! We'll contact you shortly.")
-                    st.rerun()
-
-# --- 2. PROTECTED STAFF LOGIN & PORTAL ---
-elif portal_type == "🔐 Staff Login":
+# --- CUSTOMER SHOP ---
+if portal_type == "🛒 Customer Shop":
+    st.markdown('<p class="main-header">🥦 FreshVeggies Superstore</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Browse fresh market produce delivered directly across Kumasi.</p>', unsafe_allow_html=True)
     
+    cust_name = st.text_input("Your Name / Phone Number (Required to place orders)", placeholder="e.g. Kwaku - 0244123456")
+    search_query = st.text_input("🔍 Quick Search Catalog...", placeholder="e.g. Tomatoes, Pepper, Cabbage")
+
+    st.markdown("---")
+
+    for section_title, items in catalog_sections.items():
+        display_items = items
+        if search_query:
+            display_items = [p for p in items if search_query.lower() in p["name"].lower() or search_query.lower() in p["desc"].lower()]
+        
+        if display_items:
+            st.markdown(f'<div class="section-banner">{section_title}</div>', unsafe_allow_html=True)
+            cols = st.columns(3)
+            
+            for idx, prod in enumerate(display_items):
+                with cols[idx % 3]:
+                    if os.path.exists(prod["img"]):
+                        st.image(prod["img"], use_container_width=True)
+                    else:
+                        st.markdown(f"<h1 style='text-align: center; font-size: 4rem; margin: 10px 0;'>{prod['icon']}</h1>", unsafe_allow_html=True)
+
+                    st.markdown(f"""
+                    <div class="product-card">
+                        <span class="category-badge">Fresh Produce</span>
+                        <div class="product-title">{prod['name']}</div>
+                        <div class="product-desc">{prod['desc']}</div>
+                        <div class="price-text">GH₵ {prod['price']}.00</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if st.button(f"🛒 Order {prod['name']}", key=f"btn_{section_title}_{idx}", use_container_width=True):
+                        if not cust_name:
+                            st.error("Please enter your name/phone number above first.")
+                        else:
+                            new_order = {
+                                "item": prod["name"],
+                                "customer": cust_name,
+                                "lat": 6.688 + random.uniform(-0.015, 0.015),
+                                "lon": -1.624 + random.uniform(-0.015, 0.015),
+                                "status": "Pending",
+                                "driver": "Unassigned",
+                                "price": prod["price"]
+                            }
+                            supabase.table("orders").insert(new_order).execute()
+                            st.balloons()
+                            st.success(f"Order placed for {prod['name']}! We will reach out shortly.")
+                            st.rerun()
+
+# --- STAFF PORTAL ---
+elif portal_type == "🔐 Staff Login":
     if st.session_state["user"] is None:
         st.subheader("🔐 Staff Portal Authentication")
-        
         col_a, col_b, col_c = st.columns([1, 2, 1])
         with col_b:
             with st.form("login_form"):
@@ -172,20 +220,14 @@ elif portal_type == "🔐 Staff Login":
             st.session_state["user"] = None
             st.rerun()
 
-        # OWNER DASHBOARD
         if current_user["role"] == "Owner":
             st.markdown('<p class="main-header">📊 Owner Command Center</p>', unsafe_allow_html=True)
-            st.markdown('<p class="sub-header">Manage shop revenue, live orders, and delivery driver assignments.</p>', unsafe_allow_html=True)
+            st.markdown('<p class="sub-header">Manage shop revenue, live orders, and driver dispatch.</p>', unsafe_allow_html=True)
             
-            # Key Performance Metrics
             m1, m2, m3 = st.columns(3)
-            
             total_orders = len(df_orders) if not df_orders.empty else 0
             pending_orders = len(df_orders[df_orders["status"] != "Delivered"]) if not df_orders.empty else 0
-            
-            total_revenue = 0
-            if not df_orders.empty and "price" in df_orders.columns:
-                total_revenue = df_orders["price"].fillna(0).sum()
+            total_revenue = df_orders["price"].fillna(0).sum() if not df_orders.empty and "price" in df_orders.columns else 0
                 
             m1.metric("Total Revenue", f"GH₵ {total_revenue:,.2f}")
             m2.metric("Total Orders", f"{total_orders}")
@@ -210,10 +252,9 @@ elif portal_type == "🔐 Staff Login":
                                 st.success(f"Driver '{new_driver_username}' created successfully!")
                                 st.rerun()
                             except Exception:
-                                st.error("Error creating driver. Username might already exist.")
+                                st.error("Error creating driver.")
 
             col1, col2 = st.columns([2, 1])
-            
             with col1:
                 st.subheader("📍 Live Delivery Map")
                 if not df_orders.empty:
@@ -233,9 +274,7 @@ elif portal_type == "🔐 Staff Login":
             with col2:
                 st.subheader("📦 Order Dispatch")
                 if not df_orders.empty:
-                    display_cols = ["id", "item", "customer", "status", "driver"]
-                    st.dataframe(df_orders[display_cols], hide_index=True, use_container_width=True)
-                    
+                    st.dataframe(df_orders[["id", "item", "customer", "status", "driver"]], hide_index=True, use_container_width=True)
                     driver_list = fetch_drivers()
                     selected_id = st.selectbox("Assign Driver to Order ID", df_orders["id"])
                     driver_name = st.selectbox("Select Driver", driver_list)
@@ -247,14 +286,10 @@ elif portal_type == "🔐 Staff Login":
                 else:
                     st.info("Waiting for incoming orders...")
 
-        # DRIVER VIEW
         elif current_user["role"] == "Driver":
             st.markdown(f'<p class="main-header">🚚 Driver Portal: {current_user["username"].capitalize()}</p>', unsafe_allow_html=True)
-            st.markdown('<p class="sub-header">View assigned orders and update delivery status on the go.</p>', unsafe_allow_html=True)
-            
             if not df_orders.empty:
                 my_orders = df_orders[df_orders["driver"] == current_user["username"]]
-                
                 if my_orders.empty:
                     st.info(f"No active deliveries assigned to {current_user['username']}.")
                 else:
@@ -263,13 +298,7 @@ elif portal_type == "🔐 Staff Login":
                             st.subheader(f"Order #{row['id']} — {row['item']}")
                             st.write(f"👤 Customer: **{row['customer']}**")
                             st.write(f"📌 Current Status: **{row['status']}**")
-                            
-                            new_status = st.selectbox(
-                                "Update Status", 
-                                ["Assigned", "Out for Delivery", "Delivered"], 
-                                index=["Assigned", "Out for Delivery", "Delivered"].index(row['status']) if row['status'] in ["Assigned", "Out for Delivery", "Delivered"] else 0,
-                                key=f"status_{row['id']}"
-                            )
+                            new_status = st.selectbox("Update Status", ["Assigned", "Out for Delivery", "Delivered"], key=f"status_{row['id']}")
                             if st.button(f"Update Order #{row['id']}", key=f"btn_{row['id']}"):
                                 supabase.table("orders").update({"status": new_status}).eq("id", row["id"]).execute()
                                 st.success("Status Updated!")
