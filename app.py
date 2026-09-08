@@ -86,7 +86,7 @@ if portal_type == "🛒 Customer Shop":
     st.markdown('<p class="main-header">🥦 FreshVeggies Market</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">Select farm-fresh vegetable bundles delivered directly to your door in Kumasi.</p>', unsafe_allow_html=True)
     
-    # Products Catalog
+    # Products Catalog with Ultra-Reliable Direct CDN Image Links
     products = [
         {
             "name": "Tomato Basket",
@@ -103,7 +103,7 @@ if portal_type == "🛒 Customer Shop":
         {
             "name": "Onion & Pepper Combo",
             "price": 50,
-            "img": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Onions_and_chili_peppers.jpg/800px-Onions_and_chili_peppers.jpg",
+            "img": "https://images.unsplash.com/photo-1618512496248-a07fe83aa8cf?auto=format&fit=crop&w=600&q=80",
             "desc": "Essential cooking pack with fresh red onions and scotch bonnet peppers."
         }
     ]
