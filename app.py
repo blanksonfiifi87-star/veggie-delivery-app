@@ -2,27 +2,31 @@ import streamlit as st
 import pandas as pd
 import pydeck as pdk
 import random
+from supabase import create_client
 
 st.set_page_config(page_title="FreshVeggies Express", layout="wide")
 
-# Mock Database Initialization
-if "orders" not in st.session_state:
-    st.session_state.orders = pd.DataFrame([
-        {"Order ID": 101, "Item": "Tomatoes (2kg)", "Customer": "Ama K.", "Lat": 5.530, "Lon": -0.620, "Status": "Pending", "Driver": "Unassigned"},
-        {"Order ID": 102, "Item": "Spinach & Onions", "Customer": "Kojo M.", "Lat": 5.535, "Lon": -0.628, "Status": "Out for Delivery", "Driver": "Kwame (Driver 1)"},
-    ])
+# Initialize Supabase connection using Streamlit secrets
+@st.cache_resource
+def init_supabase():
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
 
-if "demand_zones" not in st.session_state:
-    # Simulated high-demand areas (latitude, longitude, demand intensity)
-    st.session_state.demand_zones = pd.DataFrame([
-        {"lat": 5.532, "lon": -0.622, "weight": 8},
-        {"lat": 5.538, "lon": -0.625, "weight": 12},
-        {"lat": 5.528, "lon": -0.618, "weight": 5},
-    ])
+supabase = init_supabase()
 
-# Navigation
+# Fetch active orders directly from Supabase
+def fetch_orders():
+    response = supabase.table("orders").select("*").execute()
+    data = response.data
+    if not data:
+        return pd.DataFrame(columns=["id", "item", "customer", "lat", "lon", "status", "driver"])
+    return pd.DataFrame(data)
+
 st.title("🥬 FreshVeggies Logistics & Store")
 role = st.sidebar.selectbox("Select View Portal", ["Shop Owner Dashboard", "Delivery Driver App", "Customer Shop"])
+
+df_orders = fetch_orders()
 
 # --- VIEW 1: SHOP OWNER DASHBOARD ---
 if role == "Shop Owner Dashboard":
@@ -31,60 +35,57 @@ if role == "Shop Owner Dashboard":
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.subheader("📍 High-Demand Zones & Delivery Map")
-        # Heatmap layer for high demand areas
-        heatmap_layer = pdk.Layer(
-            "HeatmapLayer",
-            data=st.session_state.demand_zones,
-            get_position=["lon", "lat"],
-            get_weight="weight",
-            radius_pixels=60,
-        )
-        # Scatter layer for active orders
-        scatter_layer = pdk.Layer(
-            "ScatterplotLayer",
-            data=st.session_state.orders,
-            get_position=["Lon", "Lat"],
-            get_color="[200, 30, 0, 160]",
-            get_radius=80,
-            pickable=True
-        )
-        
-        view_state = pdk.ViewState(latitude=5.532, longitude=-0.622, zoom=13)
-        st.pydeck_chart(pdk.Deck(layers=[heatmap_layer, scatter_layer], initial_view_state=view_state, tooltip={"text": "Order: {Item}\nStatus: {Status}"}))
+        st.subheader("📍 Live Delivery Map")
+        if not df_orders.empty:
+            scatter_layer = pdk.Layer(
+                "ScatterplotLayer",
+                data=df_orders,
+                get_position=["lon", "lat"],
+                get_color="[200, 30, 0, 160]",
+                get_radius=100,
+                pickable=True
+            )
+            # Center map on average coordinate of orders
+            view_state = pdk.ViewState(latitude=df_orders["lat"].mean(), longitude=df_orders["lon"].mean(), zoom=12)
+            st.pydeck_chart(pdk.Deck(layers=[scatter_layer], initial_view_state=view_state, tooltip={"text": "Item: {item}\nStatus: {status}"}))
+        else:
+            st.info("No active orders on the map yet.")
 
     with col2:
-        st.subheader("📦 Manage Orders & Assign Drivers")
-        df = st.session_state.orders
-        st.dataframe(df[["Order ID", "Item", "Status", "Driver"]], hide_index=True)
-        
-        selected_id = st.selectbox("Select Order ID to Assign", df["Order ID"])
-        driver_name = st.text_input("Driver Name", "Kwame")
-        
-        if st.button("Assign Driver"):
-            st.session_state.orders.loc[st.session_state.orders["Order ID"] == selected_id, "Driver"] = driver_name
-            st.session_state.orders.loc[st.session_state.orders["Order ID"] == selected_id, "Status"] = "Assigned"
-            st.success(f"Assigned Order #{selected_id} to {driver_name}")
+        st.subheader("📦 Order List & Driver Assignment")
+        if not df_orders.empty:
+            st.dataframe(df_orders[["id", "item", "customer", "status", "driver"]], hide_index=True)
+            
+            selected_id = st.selectbox("Assign Driver to Order ID", df_orders["id"])
+            driver_name = st.text_input("Driver Name", "Kwame")
+            
+            if st.button("Assign Driver"):
+                supabase.table("orders").update({"driver": driver_name, "status": "Assigned"}).eq("id", selected_id).execute()
+                st.success(f"Assigned Order #{selected_id} to {driver_name}")
+                st.rerun()
+        else:
+            st.info("Waiting for new orders...")
 
 # --- VIEW 2: DELIVERY DRIVER APP ---
 elif role == "Delivery Driver App":
     st.header("🚚 Driver Delivery Portal")
-    driver_filter = st.selectbox("Select Your Name", ["Kwame (Driver 1)", "Unassigned"])
+    driver_name_input = st.text_input("Enter Your Name to View Assigned Runs", "Kwame")
     
-    my_orders = st.session_state.orders[st.session_state.orders["Driver"] == driver_filter]
-    
-    if my_orders.empty:
-        st.info("No active deliveries assigned to you right now.")
-    else:
-        for idx, row in my_orders.iterrows():
-            with st.card() if hasattr(st, "card") else st.container():
-                st.write(f"**Order #{row['Order ID']}** - {row['Item']}")
-                st.write(f"Customer: {row['Customer']} | Status: **{row['Status']}**")
+    if not df_orders.empty:
+        my_orders = df_orders[df_orders["driver"] == driver_name_input]
+        
+        if my_orders.empty:
+            st.info(f"No active deliveries assigned to {driver_name_input}.")
+        else:
+            for idx, row in my_orders.iterrows():
+                st.write(f"**Order #{row['id']}** — {row['item']}")
+                st.write(f"Customer: {row['customer']} | Current Status: **{row['status']}**")
                 
-                new_status = st.selectbox(f"Update Status for #{row['Order ID']}", ["Assigned", "Out for Delivery", "Delivered"], key=f"status_{row['Order ID']}")
-                if st.button(f"Update Order #{row['Order ID']}", key=f"btn_{row['Order ID']}"):
-                    st.session_state.orders.loc[st.session_state.orders["Order ID"] == row["Order ID"], "Status"] = new_status
+                new_status = st.selectbox(f"Update Status for #{row['id']}", ["Assigned", "Out for Delivery", "Delivered"], key=f"status_{row['id']}")
+                if st.button(f"Update Order #{row['id']}", key=f"btn_{row['id']}"):
+                    supabase.table("orders").update({"status": new_status}).eq("id", row["id"]).execute()
                     st.success("Status Updated!")
+                    st.rerun()
 
 # --- VIEW 3: CUSTOMER SHOP ---
 elif role == "Customer Shop":
@@ -94,21 +95,15 @@ elif role == "Customer Shop":
     cust_name = st.text_input("Your Name")
     
     if st.button("Place Order"):
-        new_id = random.randint(103, 999)
-        # Random location offset near store for demo
+        # Generate random coordinate near store location for demo tracking
         new_order = {
-            "Order ID": new_id,
-            "Item": veg_choice,
-            "Customer": cust_name if cust_name else "Guest",
-            "Lat": 5.532 + random.uniform(-0.01, 0.01),
-            "Lon": -0.622 + random.uniform(-0.01, 0.01),
-            "Status": "Pending",
-            "Driver": "Unassigned"
+            "item": veg_choice,
+            "customer": cust_name if cust_name else "Guest",
+            "lat": 6.688 + random.uniform(-0.01, 0.01),
+            "lon": -1.624 + random.uniform(-0.01, 0.01),
+            "status": "Pending",
+            "driver": "Unassigned"
         }
-        st.session_state.orders = pd.concat([st.session_state.orders, pd.DataFrame([new_order])], ignore_index=True)
-        
-        # Log location as demand
-        new_demand = {"lat": new_order["Lat"], "lon": new_order["Lon"], "weight": 5}
-        st.session_state.demand_zones = pd.concat([st.session_state.demand_zones, pd.DataFrame([new_demand])], ignore_index=True)
-        
-        st.success(f"Order placed successfully! Order ID: #{new_id}")
+        supabase.table("orders").insert(new_order).execute()
+        st.success("Order placed successfully! The shop owner and drivers can now see it live.")
+        st.rerun()
