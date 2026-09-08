@@ -12,9 +12,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for UI Polishing
+# Custom CSS for Google Font (Poppins) & UI Polishing
 st.markdown("""
 <style>
+    /* Import Google Font - Poppins */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+    /* Apply Poppins to every text element in Streamlit */
+    html, body, [class*="st-"], .stMarkdown, button, input, select, textarea {
+        font-family: 'Poppins', sans-serif !important;
+    }
+
     .main-header {
         font-size: 2.2rem;
         color: #2E7D32;
@@ -26,18 +34,10 @@ st.markdown("""
         color: #555555;
         margin-bottom: 20px;
     }
-    .veg-card {
-        background-color: #F9F9F9;
-        padding: 15px;
-        border-radius: 12px;
-        border: 1px solid #E0E0E0;
-        text-align: center;
-        margin-bottom: 15px;
-    }
     .price-tag {
         font-size: 1.2rem;
         color: #2E7D32;
-        font-weight: bold;
+        font-weight: 700;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -91,19 +91,19 @@ if portal_type == "🛒 Customer Shop":
         {
             "name": "Tomato Basket",
             "price": 45,
-            "img": "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400&q=80",
+            "img": "https://images.pexels.com/photos/1327838/pexels-photo-1327838.jpeg?auto=compress&cs=tinysrgb&w=600",
             "desc": "Fresh, ripe local tomatoes perfect for stews and fresh salads."
         },
         {
             "name": "Leafy Greens Mix",
             "price": 30,
-            "img": "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&q=80",
+            "img": "https://images.pexels.com/photos/2255935/pexels-photo-2255935.jpeg?auto=compress&cs=tinysrgb&w=600",
             "desc": "Crisp lettuce, spinach, and fresh local green vegetables."
         },
         {
             "name": "Onion & Pepper Combo",
             "price": 50,
-            "img": "https://images.unsplash.com/photo-1618512496248-a07fe83aa8cf?w=400&q=80",
+            "img": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Onions_and_chili_peppers.jpg/800px-Onions_and_chili_peppers.jpg",
             "desc": "Essential cooking pack with fresh red onions and scotch bonnet peppers."
         }
     ]
@@ -172,7 +172,7 @@ elif portal_type == "🔐 Staff Login":
             st.session_state["user"] = None
             st.rerun()
 
-        # FIIFI'S OWNER DASHBOARD
+        # OWNER DASHBOARD
         if current_user["role"] == "Owner":
             st.markdown('<p class="main-header">📊 Owner Command Center</p>', unsafe_allow_html=True)
             st.markdown('<p class="sub-header">Manage shop revenue, live orders, and delivery driver assignments.</p>', unsafe_allow_html=True)
@@ -183,7 +183,6 @@ elif portal_type == "🔐 Staff Login":
             total_orders = len(df_orders) if not df_orders.empty else 0
             pending_orders = len(df_orders[df_orders["status"] != "Delivered"]) if not df_orders.empty else 0
             
-            # Calculate total sales revenue if price column exists
             total_revenue = 0
             if not df_orders.empty and "price" in df_orders.columns:
                 total_revenue = df_orders["price"].fillna(0).sum()
